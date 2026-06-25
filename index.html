@@ -391,7 +391,7 @@
   </header>
 
   <!-- ── File Input ── -->
-  <input type="file" id="fileInput" accept=".md,.markdown,.txt,text/markdown,text/plain">
+  <input type="file" id="fileInput" accept="text/*,.md,.markdown,.txt,text/markdown,text/plain">
 
   <!-- ── Main Area ── -->
   <main class="main" id="main">
@@ -515,8 +515,12 @@
     // ── File Reading ──
     function readFile(file) {
       if (!file) return;
-      const ext = file.name.split('.').pop().toLowerCase();
-      if (!['md','markdown','txt',''].includes(ext) && file.type && !file.type.startsWith('text/')) {
+      const name = file.name.toLowerCase();
+      const ext = name.split('.').pop();
+      const isText = file.type === '' || file.type.startsWith('text/') || file.type === 'application/octet-stream';
+      const isMd = ['md','markdown','txt'].includes(ext);
+      // iOS 可能不给 .md 文件分配 MIME type，放宽判断
+      if (!isMd && !isText) {
         showToast('⚠️ 不支持的文件格式，请选择 .md 文件');
         return;
       }

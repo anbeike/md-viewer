@@ -1,5 +1,5 @@
 // Service Worker for MD Viewer PWA
-const CACHE_NAME = 'md-viewer-v2';
+const CACHE_NAME = 'md-viewer-v3';
 const SHARED_CACHE = 'shared-files';
 
 // Resources to cache on install for offline use

@@ -1,0 +1,654 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="theme-color" content="#1a1b1e">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="MD阅读器">
+  <link rel="manifest" href="manifest.json">
+  <link rel="icon" type="image/svg+xml" href="icon.svg">
+  <link rel="apple-touch-icon" href="icon.svg">
+  <title>Markdown 阅读器</title>
+
+  <!-- marked.js + highlight.js CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/marked@11/marked.min.js"></script>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@highlightjs/cdn-assets@11/styles/github-dark.min.css" id="hljs-theme">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@highlightjs/cdn-assets@11/styles/github.min.css" id="hljs-theme-light" disabled>
+  <script src="https://cdn.jsdelivr.net/npm/@highlightjs/cdn-assets@11/highlight.min.js"></script>
+
+  <style>
+    :root {
+      --bg: #fefefe;
+      --bg-secondary: #f8f9fa;
+      --bg-code: #f4f4f5;
+      --text: #1a1a2e;
+      --text-secondary: #6b7280;
+      --border: #e5e7eb;
+      --accent: #2563eb;
+      --accent-hover: #1d4ed8;
+      --shadow: 0 1px 3px rgba(0,0,0,0.08);
+      --radius: 12px;
+      --transition: 0.2s ease;
+      /* reading typography */
+      --content-width: 720px;
+      --font-size: 17px;
+      --line-height: 1.75;
+    }
+
+    [data-theme="dark"] {
+      --bg: #1a1b1e;
+      --bg-secondary: #25262b;
+      --bg-code: #2d2e33;
+      --text: #e4e4e7;
+      --text-secondary: #a1a1aa;
+      --border: #3f3f46;
+      --accent: #60a5fa;
+      --accent-hover: #93bbfd;
+      --shadow: 0 1px 3px rgba(0,0,0,0.3);
+    }
+
+    *, *::before, *::after {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    html {
+      font-size: var(--font-size);
+      -webkit-text-size-adjust: 100%;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", "Noto Sans CJK SC", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: var(--line-height);
+      min-height: 100dvh;
+      transition: background var(--transition), color var(--transition);
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* ── Header ── */
+    .header {
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      background: var(--bg);
+      border-bottom: 1px solid var(--border);
+      padding: 12px 16px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      transition: background var(--transition);
+      -webkit-backdrop-filter: blur(12px);
+      backdrop-filter: blur(12px);
+      background: color-mix(in srgb, var(--bg) 85%, transparent);
+    }
+
+    .header-left {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      min-width: 0;
+    }
+
+    .logo {
+      width: 32px;
+      height: 32px;
+      border-radius: 8px;
+      flex-shrink: 0;
+    }
+
+    .header-title {
+      font-size: 15px;
+      font-weight: 600;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .header-actions {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      flex-shrink: 0;
+    }
+
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      padding: 8px 14px;
+      border: none;
+      border-radius: 8px;
+      font-size: 14px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all var(--transition);
+      white-space: nowrap;
+      touch-action: manipulation;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    .btn-primary {
+      background: var(--accent);
+      color: #fff;
+    }
+    .btn-primary:active {
+      background: var(--accent-hover);
+      transform: scale(0.97);
+    }
+
+    .btn-ghost {
+      background: transparent;
+      color: var(--text-secondary);
+    }
+    .btn-ghost:active {
+      background: var(--bg-secondary);
+      color: var(--text);
+    }
+
+    .btn-icon {
+      width: 40px;
+      height: 40px;
+      padding: 0;
+      border-radius: 50%;
+      font-size: 20px;
+    }
+
+    /* ── Main Content ── */
+    .main {
+      flex: 1;
+      width: 100%;
+      max-width: var(--content-width);
+      margin: 0 auto;
+      padding: 24px 16px 48px;
+    }
+
+    /* ── Empty State ── */
+    .empty-state {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      min-height: 60dvh;
+      gap: 16px;
+      color: var(--text-secondary);
+    }
+
+    .empty-icon {
+      font-size: 64px;
+      line-height: 1;
+      opacity: 0.5;
+    }
+
+    .empty-state h2 {
+      font-size: 22px;
+      font-weight: 600;
+      color: var(--text);
+    }
+
+    .empty-state p {
+      font-size: 15px;
+      max-width: 320px;
+    }
+
+    .drop-zone {
+      border: 2px dashed var(--border);
+      border-radius: var(--radius);
+      padding: 40px 24px;
+      transition: all var(--transition);
+      cursor: pointer;
+      width: 100%;
+      max-width: 400px;
+    }
+    .drop-zone.drag-over {
+      border-color: var(--accent);
+      background: color-mix(in srgb, var(--accent) 5%, transparent);
+    }
+
+    /* ── Markdown Rendered Content ── */
+    .markdown-body {
+      word-wrap: break-word;
+      overflow-wrap: break-word;
+      animation: fadeIn 0.3s ease;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(8px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .markdown-body h1, .markdown-body h2, .markdown-body h3,
+    .markdown-body h4, .markdown-body h5, .markdown-body h6 {
+      margin-top: 1.5em;
+      margin-bottom: 0.5em;
+      font-weight: 600;
+      line-height: 1.4;
+    }
+    .markdown-body h1 { font-size: 1.8em; border-bottom: 1px solid var(--border); padding-bottom: 0.3em; }
+    .markdown-body h2 { font-size: 1.45em; border-bottom: 1px solid var(--border); padding-bottom: 0.25em; }
+    .markdown-body h3 { font-size: 1.2em; }
+    .markdown-body h4 { font-size: 1.05em; }
+
+    .markdown-body p {
+      margin-bottom: 1em;
+    }
+
+    .markdown-body a {
+      color: var(--accent);
+      text-decoration: none;
+      border-bottom: 1px solid transparent;
+      transition: border-color var(--transition);
+    }
+    .markdown-body a:hover {
+      border-bottom-color: var(--accent);
+    }
+
+    .markdown-body strong { font-weight: 600; }
+
+    .markdown-body ul, .markdown-body ol {
+      padding-left: 1.5em;
+      margin-bottom: 1em;
+    }
+    .markdown-body li { margin-bottom: 0.25em; }
+    .markdown-body li > ul, .markdown-body li > ol {
+      margin-top: 0.25em;
+      margin-bottom: 0;
+    }
+
+    .markdown-body blockquote {
+      border-left: 4px solid var(--accent);
+      padding: 0.5em 1em;
+      margin: 1em 0;
+      background: var(--bg-secondary);
+      border-radius: 0 8px 8px 0;
+      color: var(--text-secondary);
+    }
+    .markdown-body blockquote p:last-child { margin-bottom: 0; }
+
+    .markdown-body code {
+      font-family: "JetBrains Mono", "Fira Code", "Cascadia Code", "SF Mono", "Consolas", monospace;
+      font-size: 0.88em;
+      background: var(--bg-code);
+      padding: 0.2em 0.4em;
+      border-radius: 4px;
+    }
+
+    .markdown-body pre {
+      background: var(--bg-code);
+      border-radius: var(--radius);
+      padding: 16px;
+      overflow-x: auto;
+      margin: 1em 0;
+      -webkit-overflow-scrolling: touch;
+    }
+    .markdown-body pre code {
+      background: none;
+      padding: 0;
+      font-size: 0.85em;
+      line-height: 1.6;
+    }
+
+    .markdown-body table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 1em 0;
+      font-size: 0.95em;
+      overflow-x: auto;
+      display: block;
+      -webkit-overflow-scrolling: touch;
+    }
+    .markdown-body th, .markdown-body td {
+      border: 1px solid var(--border);
+      padding: 8px 12px;
+      text-align: left;
+    }
+    .markdown-body th {
+      background: var(--bg-secondary);
+      font-weight: 600;
+    }
+    .markdown-body tr:nth-child(even) {
+      background: var(--bg-secondary);
+    }
+
+    .markdown-body img {
+      max-width: 100%;
+      height: auto;
+      border-radius: var(--radius);
+      margin: 1em 0;
+    }
+
+    .markdown-body hr {
+      border: none;
+      border-top: 1px solid var(--border);
+      margin: 2em 0;
+    }
+
+    /* task lists */
+    .markdown-body input[type="checkbox"] {
+      margin-right: 6px;
+      accent-color: var(--accent);
+    }
+
+    /* ── Toast ── */
+    .toast {
+      position: fixed;
+      bottom: 24px;
+      left: 50%;
+      transform: translateX(-50%) translateY(100px);
+      background: #1f2937;
+      color: #f9fafb;
+      padding: 10px 20px;
+      border-radius: 20px;
+      font-size: 14px;
+      z-index: 999;
+      transition: transform 0.3s ease;
+      pointer-events: none;
+    }
+    .toast.show {
+      transform: translateX(-50%) translateY(0);
+    }
+
+    /* ── Hidden file input ── */
+    #fileInput { display: none; }
+
+    /* ── Responsive ── */
+    @media (max-width: 500px) {
+      .header { padding: 10px 12px; }
+      .main { padding: 16px 12px 40px; }
+      :root { --font-size: 16px; }
+      .btn { padding: 8px 12px; font-size: 13px; }
+    }
+
+    /* print-friendly */
+    @media print {
+      .header, .toast { display: none !important; }
+      body { background: #fff; color: #000; }
+    }
+  </style>
+</head>
+<body data-theme="light">
+
+  <!-- ── Header ── -->
+  <header class="header">
+    <div class="header-left">
+      <img src="icon.svg" alt="logo" class="logo">
+      <span class="header-title" id="headerTitle">Markdown 阅读器</span>
+    </div>
+    <div class="header-actions">
+      <button class="btn btn-ghost btn-icon" id="btnTheme" title="切换暗色模式" aria-label="切换暗色模式">🌙</button>
+      <button class="btn btn-primary" id="btnOpen" title="打开文件">📂 打开</button>
+    </div>
+  </header>
+
+  <!-- ── File Input ── -->
+  <input type="file" id="fileInput" accept=".md,.markdown,.txt,text/markdown,text/plain">
+
+  <!-- ── Main Area ── -->
+  <main class="main" id="main">
+    <!-- Empty State -->
+    <div class="empty-state" id="emptyState">
+      <div class="empty-icon">📝</div>
+      <h2>查看 Markdown 文件</h2>
+      <p>打开一个 .md 文件，或从其他应用「分享」到本应用即可查看</p>
+      <div class="drop-zone" id="dropZone">
+        <p>📁 点击此处选择文件</p>
+        <p style="font-size:13px;margin-top:8px;color:var(--text-secondary)">支持 .md / .markdown / .txt</p>
+      </div>
+      <button class="btn btn-ghost" id="btnPaste" style="margin-top:4px;">📋 粘贴 Markdown 内容</button>
+      <textarea id="pasteArea" style="position:fixed;top:-9999px;left:-9999px;opacity:0;width:1px;height:1px;" aria-hidden="true"></textarea>
+    </div>
+
+    <!-- Rendered Markdown -->
+    <article class="markdown-body" id="markdownBody" style="display:none;"></article>
+  </main>
+
+  <!-- ── Toast ── -->
+  <div class="toast" id="toast"></div>
+
+  <script>
+    // ── Config ──
+    const DARK_THEME_STORAGE = 'md-viewer-theme';
+
+    // ── DOM refs ──
+    const $main = document.getElementById('main');
+    const $empty = document.getElementById('emptyState');
+    const $body = document.getElementById('markdownBody');
+    const $title = document.getElementById('headerTitle');
+    const $btnTheme = document.getElementById('btnTheme');
+    const $btnOpen = document.getElementById('btnOpen');
+    const $fileInput = document.getElementById('fileInput');
+    const $dropZone = document.getElementById('dropZone');
+    const $toast = document.getElementById('toast');
+
+    let toastTimer;
+
+    // ── Toast ──
+    function showToast(msg) {
+      $toast.textContent = msg;
+      $toast.classList.add('show');
+      clearTimeout(toastTimer);
+      toastTimer = setTimeout(() => $toast.classList.remove('show'), 2000);
+    }
+
+    // ── Dark Mode ──
+    function applyTheme(dark) {
+      document.body.dataset.theme = dark ? 'dark' : 'light';
+      $btnTheme.textContent = dark ? '☀️' : '🌙';
+      // swap highlight.js theme
+      const hlDark = document.getElementById('hljs-theme');
+      const hlLight = document.getElementById('hljs-theme-light');
+      hlDark.disabled = !dark;
+      hlLight.disabled = dark;
+      try { localStorage.setItem(DARK_THEME_STORAGE, dark ? 'dark' : 'light'); } catch(e) {}
+    }
+
+    function toggleTheme() {
+      applyTheme(document.body.dataset.theme !== 'dark');
+    }
+
+    // Init theme from storage
+    (function initTheme() {
+      const saved = (() => { try { return localStorage.getItem(DARK_THEME_STORAGE); } catch(e) { return null; } })();
+      const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+      applyTheme(saved === 'dark' || (!saved && prefersDark));
+    })();
+
+    $btnTheme.addEventListener('click', toggleTheme);
+
+    // ── Markdown Rendering ──
+    function initMarked() {
+      if (typeof marked === 'undefined') {
+        showToast('⚠️ marked.js 加载失败，请检查网络');
+        return;
+      }
+      marked.setOptions({
+        breaks: true,
+        gfm: true,
+      });
+      // Configure highlight.js
+      if (typeof hljs !== 'undefined') {
+        marked.setOptions({
+          highlight: function(code, lang) {
+            if (lang && hljs.getLanguage(lang)) {
+              return hljs.highlight(code, { language: lang }).value;
+            }
+            return hljs.highlightAuto(code).value;
+          }
+        });
+      }
+    }
+
+    function renderMarkdown(text, filename) {
+      if (!$body) return;
+      initMarked();
+      const html = typeof marked !== 'undefined' ? marked.parse(text) : escapeHtml(text);
+      $body.innerHTML = html;
+      $body.style.display = '';
+      $empty.style.display = 'none';
+      $title.textContent = filename || '📄 预览';
+      document.title = filename ? `${filename} - MD阅读器` : 'MD阅读器';
+      // scroll to top
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+
+    function showEmpty() {
+      $body.style.display = 'none';
+      $empty.style.display = '';
+      $title.textContent = 'Markdown 阅读器';
+      document.title = 'Markdown 阅读器';
+    }
+
+    function escapeHtml(str) {
+      return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+    }
+
+    // ── File Reading ──
+    function readFile(file) {
+      if (!file) return;
+      const ext = file.name.split('.').pop().toLowerCase();
+      if (!['md','markdown','txt',''].includes(ext) && file.type && !file.type.startsWith('text/')) {
+        showToast('⚠️ 不支持的文件格式，请选择 .md 文件');
+        return;
+      }
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        renderMarkdown(e.target.result, file.name);
+        showToast('✅ 已加载');
+      };
+      reader.onerror = () => showToast('❌ 读取失败');
+      reader.readAsText(file);
+    }
+
+    // ── Event Handlers ──
+    $btnOpen.addEventListener('click', () => $fileInput.click());
+    $dropZone.addEventListener('click', () => $fileInput.click());
+    $fileInput.addEventListener('change', () => {
+      const file = $fileInput.files[0];
+      if (file) readFile(file);
+      $fileInput.value = '';
+    });
+
+    // Drag & Drop
+    $dropZone.addEventListener('dragover', (e) => {
+      e.preventDefault();
+      $dropZone.classList.add('drag-over');
+    });
+    $dropZone.addEventListener('dragleave', () => {
+      $dropZone.classList.remove('drag-over');
+    });
+    $dropZone.addEventListener('drop', (e) => {
+      e.preventDefault();
+      $dropZone.classList.remove('drag-over');
+      const file = e.dataTransfer.files[0];
+      if (file) readFile(file);
+    });
+
+    // Global drag & drop (for entire page)
+    document.addEventListener('dragover', (e) => e.preventDefault());
+    document.addEventListener('drop', (e) => {
+      e.preventDefault();
+      const file = e.dataTransfer.files[0];
+      if (file) readFile(file);
+    });
+
+    // ── Paste Support ──
+    const $pasteArea = document.getElementById('pasteArea');
+    const $btnPaste = document.getElementById('btnPaste');
+
+    // Desktop: handle paste on document (works for files and text)
+    document.addEventListener('paste', (e) => {
+      const items = e.clipboardData?.items;
+      if (!items) return;
+      // Check for file first
+      for (const item of items) {
+        if (item.kind === 'file') {
+          const file = item.getAsFile();
+          if (file) { readFile(file); return; }
+        }
+      }
+      // If no file, try text paste (desktop only — mobile needs textarea)
+      const text = e.clipboardData.getData('text/plain');
+      if (text && text.trim() && $body.style.display === 'none') {
+        e.preventDefault();
+        renderMarkdown(text.trim(), '粘贴内容');
+      }
+    });
+
+    // Mobile: use hidden textarea trick for paste
+    $btnPaste.addEventListener('click', () => {
+      $pasteArea.value = '';
+      $pasteArea.focus();
+      // On mobile, focusing the textarea will open keyboard and allow paste
+      showToast('📋 请长按并选择「粘贴」');
+    });
+
+    $pasteArea.addEventListener('paste', (e) => {
+      const text = e.clipboardData?.getData('text/plain');
+      if (text && text.trim()) {
+        e.preventDefault();
+        renderMarkdown(text.trim(), '粘贴内容');
+        $pasteArea.blur();
+      }
+    });
+
+    // Also handle text drop from clipboard on the textarea
+    $pasteArea.addEventListener('input', () => {
+      const text = $pasteArea.value.trim();
+      if (text && $body.style.display === 'none') {
+        renderMarkdown(text, '粘贴内容');
+        $pasteArea.value = '';
+      }
+    });
+
+    // ── Handle Shared Files (PWA Share Target) ──
+    async function handleSharedFile() {
+      const params = new URLSearchParams(location.search);
+      if (!params.has('shared')) return false;
+
+      try {
+        const cache = await caches.open('shared-files');
+        const response = await cache.match('/shared-file');
+        if (response) {
+          const text = await response.text();
+          const filename = response.headers.get('X-Filename') || '分享的文件.md';
+          renderMarkdown(text, filename);
+          await cache.delete('/shared-file');
+          // Clean URL
+          window.history.replaceState({}, '', './');
+          return true;
+        }
+        // Also check via postMessage from SW
+      } catch(e) {
+        console.warn('Share target handling failed:', e);
+      }
+      // Clean URL
+      window.history.replaceState({}, '', './');
+      return false;
+    }
+
+    // ── Init ──
+    (async function init() {
+      const handled = await handleSharedFile();
+      if (!handled) {
+        showEmpty();
+      }
+      // Register service worker
+      if ('serviceWorker' in navigator) {
+        try {
+          await navigator.serviceWorker.register('sw.js', { scope: './' });
+        } catch(e) {
+          console.warn('SW registration failed:', e);
+        }
+      }
+    })();
+  </script>
+</body>
+</html>

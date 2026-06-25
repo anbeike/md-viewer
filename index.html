@@ -361,6 +361,36 @@
     /* ── Hidden file input ── */
     #fileInput { display: none; }
 
+    /* ── Floating Action Button ── */
+    .fab {
+      position: fixed;
+      bottom: 28px;
+      right: 20px;
+      width: 52px;
+      height: 52px;
+      border-radius: 50%;
+      background: var(--accent);
+      color: #fff;
+      border: none;
+      font-size: 22px;
+      box-shadow: 0 4px 14px rgba(0,0,0,0.25);
+      cursor: pointer;
+      z-index: 200;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      transition: transform var(--transition), opacity var(--transition);
+      touch-action: manipulation;
+      -webkit-tap-highlight-color: transparent;
+      padding-bottom: env(safe-area-inset-bottom, 0px);
+    }
+    .fab:active {
+      transform: scale(0.9);
+    }
+    .fab.visible {
+      display: flex;
+    }
+
     /* ── Responsive ── */
     @media (max-width: 500px) {
       .header { padding: 10px 12px; }
@@ -386,7 +416,6 @@
     </div>
     <div class="header-actions">
       <button class="btn btn-ghost btn-icon" id="btnTheme" title="切换暗色模式" aria-label="切换暗色模式">🌙</button>
-      <button class="btn btn-primary" id="btnOpen" title="打开文件">📂 打开</button>
     </div>
   </header>
 
@@ -404,6 +433,7 @@
         <p>📁 点击此处选择文件</p>
         <p style="font-size:13px;margin-top:8px;color:var(--text-secondary)">支持 .md / .markdown / .txt</p>
       </div>
+      <button class="btn btn-primary btn-lg" id="btnOpen" style="margin-top:12px;">📂 选择文件</button>
       <button class="btn btn-ghost" id="btnPaste" style="margin-top:4px;">📋 粘贴 Markdown 内容</button>
       <textarea id="pasteArea" style="position:fixed;top:-9999px;left:-9999px;opacity:0;width:1px;height:1px;" aria-hidden="true"></textarea>
     </div>
@@ -414,6 +444,9 @@
 
   <!-- ── Toast ── -->
   <div class="toast" id="toast"></div>
+
+  <!-- ── FAB (浏览内容时显示) ── -->
+  <button class="fab" id="btnFab" title="打开文件">📂</button>
 
   <script>
     // ── Config ──
@@ -426,6 +459,7 @@
     const $title = document.getElementById('headerTitle');
     const $btnTheme = document.getElementById('btnTheme');
     const $btnOpen = document.getElementById('btnOpen');
+    const $btnFab = document.getElementById('btnFab');
     const $fileInput = document.getElementById('fileInput');
     const $dropZone = document.getElementById('dropZone');
     const $toast = document.getElementById('toast');
@@ -495,6 +529,7 @@
       $body.innerHTML = html;
       $body.style.display = '';
       $empty.style.display = 'none';
+      $btnFab.classList.add('visible');
       $title.textContent = filename || '📄 预览';
       document.title = filename ? `${filename} - MD阅读器` : 'MD阅读器';
       // scroll to top
@@ -504,6 +539,7 @@
     function showEmpty() {
       $body.style.display = 'none';
       $empty.style.display = '';
+      $btnFab.classList.remove('visible');
       $title.textContent = 'Markdown 阅读器';
       document.title = 'Markdown 阅读器';
     }
@@ -535,6 +571,7 @@
 
     // ── Event Handlers ──
     $btnOpen.addEventListener('click', () => $fileInput.click());
+    $btnFab.addEventListener('click', () => $fileInput.click());
     $dropZone.addEventListener('click', () => $fileInput.click());
     $fileInput.addEventListener('change', () => {
       const file = $fileInput.files[0];
